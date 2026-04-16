@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sling-Calc | مساعد فني تصنيع الشاسيه</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #d35400;
+            --safe-bg: #d4edda;
+            --safe-text: #155724;
+            --danger-bg: #f8d7da;
+            --danger-text: #721c24;
+            --warning-bg: #fff3cd;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f0f2f5; padding: 15px; direction: rtl; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        h1 { text-align: center; color: var(--primary); font-size: 1.6em; border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+        
+        .input-card { background: #fafafa; padding: 20px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #333; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        
+        button { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.2em; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: var(--accent); }
+
+        #report { margin-top: 25px; display: none; }
+        .report-header { text-align: center; background: #eee; padding: 10px; border-radius: 8px 8px 0 0; border: 1px solid #ddd; border-bottom: none; }
+        
+        .status-box { padding: 15px; border: 1px solid #ddd; margin-bottom: 0px; font-size: 1em; line-height: 1.6; }
+        .safe { background: var(--safe-bg); color: var(--safe-text); }
+        .danger { background: var(--danger-bg); color: var(--danger-text); }
+        
+        .guidance-card { margin-top: 15px; padding: 15px; border: 2px solid var(--primary); border-radius: 8px; text-align: center; font-weight: bold; }
+
+        .disclaimer { margin-top: 30px; padding: 15px; background: #fff3cd; border-right: 5px solid #ffeeba; border-radius: 4px; font-size: 0.85em; color: #856404; }
+        .disclaimer h4 { margin: 0 0 10px 0; }
+.footer-signature {
+        margin-top: 40px;
+        text-align: center;
+        padding: 20px;
+        background: #2c3e50;
+        color: white;
+        border-radius: 8px;
+        font-size: 18px;
+        letter-spacing: 1px;
+    }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>مساعد تصنيع شاسيه المصعد (الكمرات الأفقية)</h1>
+    
+    <div class="input-card">
+        <div class="form-group">
+            <label>نوع كمرة الحديد</label>
+            <select id="pType" onchange="loadSizes()">
+                <option value="UPN">UPN (كمر مجرى)</option>
+                <option value="IPE (حرف I)">IPE (كمر حرف I)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>مقاس الكمرة (ارتفاع الجنب بالسم)</label>
+            <select id="pSize"></select>
+        </div>
+
+        <div class="form-group">
+            <label>طول الكمرة الأفقية (بالسنتيمتر)</label>
+            <input type="number" id="L_cm" value="120">
+        </div>
+
+        <div class="form-group">
+            <label>إجمالي الوزن (الكابينة + الحمولة) بالكيلو</label>
+            <input type="number" id="totalMass" value="1500">
+        </div>
+    </div>
+
+    <button onclick="generateTechnicianReport()">تحليل أمان الكمرة وتوجيه الفني</button>
+
+    <div id="report">
+        <div class="report-header"><h3>النتيجة الفنية والإرشادية</h3></div>
+        <div id="reportContent"></div>
+    </div>
+
+    <div class="disclaimer">
+        <h4>⚠️ تنبيهات هامة للفني المسؤول:</h4>
+        <ul>
+            <li>نتائج هذا التطبيق <b>استرشادية</b> مبنية على معادلات هندسية، ويظل الفني مسؤولاً عن جودة التنفيذ.</li>
+            <li>يجب مراعاة <b>انتظام توزيع الحمولة</b> داخل الكابينة؛ فالأحمال المركزة في جهة واحدة تزيد الإجهاد الفعلي.</li>
+            <li>تأكد من <b>سلامة اللحامات</b> واستخدام براغي (مسامير) ذات صلابة عالية (Grade 8.8 على الأقل).</li>
+            <li>هذه الحسابات تفترض استخدام حديد إنشائي نظيف وخالٍ من الصدأ أو العيوب التصنيعية.</li>
+        </ul>
+    </div>
+<div class="footer-signature">
+        تصميم وإعداد: <strong>طلعت عتمان - ايلاف للمصاعد - مدونة المصاعد</strong>
+    </div>
+</div>
+
+<script>
+    const db = {
+        UPN: {"8": 26.5, "10": 41.1, "12": 60.7, "14": 86.4, "16": 116, "18": 150, "20": 191, "22": 245, "24": 300, "26": 371, "28": 448, "30": 535},
+        "IPE (حرف I)": {"8": 20, "10": 34.2, "12": 54.7, "14": 77.3, "16": 109, "18": 146, "20": 194, "22": 252, "24": 324, "27": 429, "30": 542}
+    };
+
+    function loadSizes() {
+        const type = document.getElementById('pType').value;
+        const select = document.getElementById('pSize');
+        select.innerHTML = '';
+        Object.keys(db[type]).forEach(sz => {
+            let opt = document.createElement('option');
+            opt.value = sz; opt.innerText = "مقاس " + sz + " سم";
+            select.appendChild(opt);
+        });
+    }
+
+    function calculateStress(mass, L_cm, Wx) {
+        return ((mass * 9.81 * (L_cm * 10)) / 8) / (Wx * 1000);
+    }
+
+    function generateTechnicianReport() {
+        const type = document.getElementById('pType').value;
+        const size = document.getElementById('pSize').value;
+        const mass = parseFloat(document.getElementById('totalMass').value);
+        const L_cm = parseFloat(document.getElementById('L_cm').value);
+        const Wx = db[type][size];
+
+        const sNormal = calculateStress(mass, L_cm, Wx * 1.0);
+        const sSafety = calculateStress(mass, L_cm * 1.5, Wx); // تمثيل معامل الصدمة بزيادة الحمل
+        const sEarth = calculateStress(mass, L_cm * 1.2, Wx);
+
+        const limit = 130;
+        let html = "";
+
+        // 1. الوضع الطبيعي
+        const nSafe = sNormal <= limit;
+        html += `<div class="status-box ${nSafe ? 'safe':'danger'}">` +
+                `<b>✅ الوضع الطبيعي:</b> الكمرة ${type} مقاس ${size} ${nSafe ? 'مناسبة جداً':'غير آمنة'}؛ لأن الإجهاد في حالة الحركة العادية يبلغ (${sNormal.toFixed(1)}) وهو ${nSafe ? 'ضمن الحدود الآمنة.':'مرتفع جداً وقد يسبب انحناء.'}</div>`;
+
+        // 2. فرملة الطوارئ
+        const sSafe = sSafety <= limit;
+        html += `<div class="status-box ${sSafe ? 'safe':'danger'}">` +
+                `<b>⚠️ فرملة الطوارئ:</b> هذه الكمرة ${sSafe ? 'ستتحمل':'قد تفشل في تحمل'} الصدمة العنيفة عند وقوف المصعد فجأة على الباراشوت؛ ${sSafe ? 'مما يجعلها خياراً موفقاً للصيانة والتركيب.':'لذا ننصح بشدة بزيادة المقاس لتفادي التواء الشاسيه عند الطوارئ.'}</div>`;
+
+        // 3. وضع الزلازل
+        const eSafe = sEarth <= limit;
+        html += `<div class="status-box ${eSafe ? 'safe':'danger'}">` +
+                `<b>🌍 وضع الزلازل:</b> عند حدوث اهتزازات، ${eSafe ? 'تظل هذه الكمرة متماسكة وتحافظ على سلامة الركاب.':'قد يضعف الهيكل؛ يفضل استخدام مقاس أكبر إذا كان المبنى في منطقة نشطة زلزالياً.'}</div>`;
+
+        // التوجيه النهائي
+        let finalGuidance = "";
+        if (nSafe && sSafe && eSafe) {
+            finalGuidance = `<div class="guidance-card" style="color:var(--safe-text); border-color:var(--safe-text)">✅ التوجيه: هذه الكمرة (آمنة تماماً) وتعتبر اختياراً هندسياً سليماً لهذا المصعد.</div>`;
+        } else if (nSafe) {
+            finalGuidance = `<div class="guidance-card" style="color:var(--accent); border-color:var(--accent)">⚠️ التوجيه: الكمرة كافية للتشغيل اليومي، ولكنها ضعيفة في الطوارئ. يفضل رفع المقاس درجة واحدة للأمان.</div>`;
+        } else {
+            finalGuidance = `<div class="guidance-card" style="color:var(--danger-text); border-color:var(--danger-text)">❌ التوجيه: مرفوض! هذه الكمرة ضعيفة جداً بالنسبة لهذه الحمولة والطول. يجب اختيار مقاس أكبر فوراً.</div>`;
+        }
+
+        document.getElementById('reportContent').innerHTML = html + finalGuidance;
+        document.getElementById('report').style.display = 'block';
+    }
+
+    window.onload = loadSizes;
+</script>
+</body>
+</html>
