@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة إجهاد الأرضية المتقدمة - إيلاف للمصاعد</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eef2f3; padding: 20px; color: #2c3e50; }
+        .container { max-width: 850px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid #e67e22; }
+        h2 { text-align: center; color: #d35400; margin-bottom: 5px; }
+        .author { text-align: center; font-size: 0.85em; color: #7f8c8d; margin-bottom: 25px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.95em; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box; font-size: 1em; }
+        .full-width { grid-column: span 2; }
+        button { width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 6px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #d35400; transform: translateY(-2px); }
+        #result { margin-top: 30px; padding: 25px; border-radius: 10px; display: none; line-height: 1.6; }
+        .success { background-color: #dff0d8; color: #3c763d; border: 2px solid #d6e9c6; }
+        .danger { background-color: #f2dede; color: #a94442; border: 2px solid #ebccd1; }
+        .report-title { font-size: 1.3em; font-weight: bold; border-bottom: 2px solid; margin-bottom: 15px; padding-bottom: 5px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dashed rgba(0,0,0,0.1); }
+        .advice-box { margin-top: 20px; background: rgba(255,255,255,0.5); padding: 15px; border-radius: 5px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>حاسبة إجهاد ونحافة أرضية الصاعدة (كمرة المدخل)</h2>
+    <p class="author">إعداد وتصميم: طلعت عتمان - إيلاف للمصاعد - مدونة المصاعد</p>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label>طريقة التحميل (نوع المصعد):</label>
+            <select id="loadMethod">
+                <option value="0.4">مصعد ركاب (معامل 0.4)</option>
+                <option value="0.6">بضائع - شوكة يدوي/عربة (معامل 0.6)</option>
+                <option value="0.8">بضائع - رافعة شوكية بمحرك (معامل 0.8)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>نوع الكمرة:</label>
+            <select id="beamType" onchange="toggleThickness()">
+                <option value="upn">كمر مجرى (UPN)</option>
+                <option value="folded">صاج مكسح (C-Channel)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>مقاس الكمرة (ارتفاع الجنب بالسم):</label>
+            <select id="beamSize">
+                <option value="80">8 سم</option>
+                <option value="100">10 سم</option>
+                <option value="120">12 سم</option>
+                <option value="140">14 سم</option>
+                <option value="160">16 سم</option>
+                <option value="180">18 سم</option>
+                <option value="200">20 سم</option>
+                <option value="220">22 سم</option>
+            </select>
+        </div>
+
+        <div id="thicknessDiv" class="form-group" style="display:none;">
+            <label>تخانة الصاج المكسح (مم):</label>
+            <select id="thickness">
+                <option value="1.5">1.5 مم</option>
+                <option value="2.0">2.0 مم</option>
+                <option value="3.0">3.0 مم</option>
+                <option value="4.0">4.0 مم</option>
+                <option value="5.0">5.0 مم</option>
+                <option value="6.0">6.0 مم</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>طول الكمرة العرضية (سم):</label>
+            <input type="number" id="beamLen" value="300">
+        </div>
+
+        <div class="form-group">
+            <label>حمولة الركاب/البضاعة Q (كجم):</label>
+            <input type="number" id="payload" value="3000">
+        </div>
+    </div>
+
+    <button onclick="calculateResults()">تحليل المتانة والأمان</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    // بيانات الكمر المجرى UPN حسب المواصفات القياسية
+    const upnStats = {
+        80:  {wx: 26500,  imin: 11.4},
+        100: {wx: 41200,  imin: 14.7},
+        120: {wx: 60700,  imin: 17.4},
+        140: {wx: 86400,  imin: 19.9},
+        160: {wx: 116000, imin: 22.3},
+        180: {wx: 150000, imin: 24.3},
+        200: {wx: 191000, imin: 26.5},
+        220: {wx: 245000, imin: 28.5}
+    };
+
+    function toggleThickness() {
+        const type = document.getElementById('beamType').value;
+        document.getElementById('thicknessDiv').style.display = (type === 'folded') ? 'block' : 'none';
+    }
+
+    function calculateResults() {
+        const k = parseFloat(document.getElementById('loadMethod').value);
+        const type = document.getElementById('beamType').value;
+        const size = parseInt(document.getElementById('beamSize').value);
+        const L = parseFloat(document.getElementById('beamLen').value) * 10; 
+        const Q = parseFloat(document.getElementById('payload').value);
+        const resDiv = document.getElementById('result');
+        
+        let wx, imin;
+
+        if (type === 'upn') {
+            wx = upnStats[size].wx;
+            imin = upnStats[size].imin;
+        } else {
+    const t = parseFloat(document.getElementById('thickness').value);
+    const H = size * 10; // الارتفاع بالمليمتر
+    const B = 50;       // عرض الثنية الثابت (5 سم) كما في الورشة
+
+    // حساب معامل المقطع Wx بدقة لمقطع C بجناح ثابت 5 سم
+    // المعادلة: t * [ (H^2 / 6) + (B * H) ]
+    wx = t * ((Math.pow(H, 2) / 6) + (B * H));
+
+    // حساب imin للنحافة (يعتمد على الجناح الثابت 5 سم)
+    // في المقاطع المفتوحة، imin يتأثر بالعرض الأقل (وهو هنا الـ 5 سم)
+    imin = B * 0.28; 
+}
+
+        // 1. حساب قوة العتبة Fs والقوة المركزة F
+        const Fs = k * 9.81 * Q;
+        const F = Fs / 2;
+
+        // 2. حساب إجهاد الانحناء (الحد 90)
+        const M = (F * L) / 2;
+        const stress = M / wx;
+
+        // 3. حساب النحافة (الحد 120)
+        const slenderness = L / imin;
+
+        // التحقق من الأمان
+        const safeStress = stress <= 90;
+        const safeSlender = slenderness <= 120;
+        const totalSafe = safeStress && safeSlender;
+
+        resDiv.style.display = "block";
+        resDiv.className = totalSafe ? "success" : "danger";
+
+        let report = `<div class="report-title">تقرير الفحص الهندسي: ${totalSafe ? 'ناجح (مطابق)' : 'راسب (غير مطابق)'}</div>`;
+        report += `<div class="data-row"><span>المعامل المستخدم (k):</span> <b>${k}</b></div>`;
+        report += `<div class="data-row"><span>قوة الصدمة عند العتبة:</span> <b>${(Fs/1000).toFixed(2)} كيلو نيوتن</b></div>`;
+        report += `<div class="data-row"><span>إجهاد الانحناء الفعلي:</span> <b style="color:${safeStress?'':'red'}">${stress.toFixed(2)} N/mm²</b></div>`;
+        report += `<div class="data-row"><span>نسبة النحافة (L/i):</span> <b style="color:${safeSlender?'':'red'}">${slenderness.toFixed(2)}</b></div>`;
+
+        if (!totalSafe) {
+            report += `<div class="advice-box">⚠️ <b>توجيهات ذكية للتعديل:</b><br>`;
+            if (!safeStress) report += `- <b>ضعف في المقطع:</b> الإجهاد تجاوز حد الـ 90. استخدم مقاس كمرة أكبر أو ضاعف الكمرة (Back-to-Back).<br>`;
+            if (!safeSlender) report += `- <b>مشكلة في الطول:</b> الكمرة نحيفة جداً بالنسبة لطولها. يجب إضافة تدعيم طولي (Stringers) تحت الأرضية لتقليل البحر (Span).<br>`;
+            report += `</div>`;
+        } else {
+            report += `<div class="advice-box">✅ التصميم آمن ويحقق معامل أمان كافٍ ضد الصدمات الديناميكية أثناء التحميل.</div>`;
+        }
+
+        resDiv.innerHTML = report;
+    }
+</script>
+
+</body>
+</html>
