@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSling-Calc Pro | خبير تصميم شاسيه المصاعد</title>
+    <style>
+        :root { 
+            --primary: #2c3e50; 
+            --accent: #2980b9; 
+            --danger: #c0392b; 
+            --success: #27ae60; 
+            --warning: #f39c12; 
+            --light: #f8f9fa;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #dfe6e9; 
+            margin: 0; 
+            padding: 10px; 
+            line-height: 1.6;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 20px auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); 
+        }
+        h1 { 
+            text-align: center; 
+            color: var(--primary); 
+            border-bottom: 4px solid var(--accent); 
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 25px; 
+        }
+        .section-title { 
+            background: var(--primary); 
+            color: white; 
+            padding: 10px 15px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .input-group { margin-bottom: 15px; }
+        label { 
+            display: block; 
+            margin-bottom: 6px; 
+            font-weight: 600; 
+            color: #444;
+            font-size: 14px;
+        }
+        select, input { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #eee; 
+            border-radius: 8px; 
+            font-size: 15px; 
+            transition: 0.3s;
+        }
+        select:focus, input:focus { border-color: var(--accent); outline: none; }
+        
+        button { 
+            width: 100%; 
+            padding: 18px; 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 20px; 
+            font-weight: bold;
+            cursor: pointer; 
+            transition: 0.3s; 
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(41, 128, 185, 0.3);
+        }
+        button:hover { background: #1c5982; transform: translateY(-2px); }
+
+        .result-card { margin-top: 30px; display: none; border-top: 2px solid #eee; padding-top: 20px; }
+        
+        #adviceBox { 
+            background: #fff3cd; 
+            color: #856404; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border-right: 10px solid var(--warning); 
+            margin-bottom: 20px; 
+            font-size: 15px;
+            display: none;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #ddd; padding: 15px; text-align: center; }
+        th { background: var(--light); color: var(--primary); font-weight: bold; }
+        
+        .status-badge { 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            color: white; 
+            font-size: 13px;
+        }
+        .pass { background: var(--success); }
+        .fail { background: var(--danger); }
+
+        .footer-note { font-size: 12px; color: #7f8c8d; margin-top: 15px; text-align: center; }
+
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>تحليل أمان الكمر الرأسى (الشمعات) لشاسيه كابينة المصعد</h1>
+    
+    <div class="grid">
+        <div class="column">
+            <div class="section-title">📦 مواصفات الحديد والأبعاد</div>
+            <div class="input-group">
+                <label>نوع المقطع:</label>
+                <select id="beamType" onchange="updateBeamList()">
+                    <option value="upn">كمر مجرى ساخن (UPN)</option>
+                    <option value="c-channel">مجرى صاج مكسح (C-Channel)</option>
+                    <option value="angle">زاويتين لكل جانب (Angle)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>مقاس المقطع المتوفر:</label>
+                <select id="beamSize"></select>
+            </div>
+            <div class="input-group">
+                <label>المسافة H (بين الكرسى العلوى والسفلى) - مم:</label>
+                <input type="number" id="heightH" value="3000">
+            </div>
+            <div class="input-group">
+                <label>الطول L (الطول الحر للكمرة) - مم:</label>
+                <input type="number" id="lengthL" value="2900">
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="section-title">⚙️ أحمال التشغيل والظروف</div>
+            <div class="input-group">
+                <label>إجمالي الوزن (كابينة + حمولة) - كجم:</label>
+                <input type="number" id="totalLoad" value="1000">
+            </div>
+            <div class="input-group">
+                <label>نوع جهاز الأمان (Safety Gear):</label>
+                <select id="safetyType">
+                    <option value="2">تدريجي (Progressive) - k1=2</option>
+                    <option value="3">لحظي بمخمد او بكر مسنن (Instant. w/ Buffer) - k1=3</option>
+                    <option value="5">لحظي (Instantaneous) - k1=5</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>منطقة النشاط الزلزالي:</label>
+                <select id="seismicAcc">
+                    <option value="0">لا يوجد (Safe Zone)</option>
+                    <option value="1">منطقة ضعيفة (0.1g)</option>
+                    <option value="2.5">منطقة متوسطة (0.25g)</option>
+                    <option value="4">منطقة قوية (0.4g)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>طريقة التثبيت الجانبي:</label>
+                <select id="bracing">
+                    <option value="none">قائم حر (بدون تدعيم وسطى بالطبلية)</option>
+                    <option value="mid">تدعيم وسطى (مربوط بطبلية الكابينة)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="calculateFull()">تحليل الإجهاد والنحافة</button>
+
+    <div id="results" class="result-card">
+        <div id="adviceBox"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>حالة التحميل</th>
+                    <th>الإجهاد المحصل (N/mm²)</th>
+                    <th>نسبة النحافة (λ)</th>
+                    <th>النتيجة</th>
+                </tr>
+            </thead>
+            <tbody id="resultTable"></tbody>
+        </table>
+        <div class="footer-note">
+            * الحدود القصوى: الإجهاد 130 نيوتن/مم² | النحافة (Lambda) 120 حسب المواصفة TS 1812.
+        </div>
+    </div>
+<footer style="margin-top: 30px; text-align: center; border-top: 1px solid #eee; padding-top: 15px;">
+        <a href="https://elevatorsinfo.blogspot.com/" target="_blank" style="color: var(--secondary-color); text-decoration: none; font-size: 14px;">مدونة المصاعد - المهندس طلعت عتمان - ايلاف للمصاعد</a>
+    </footer>
+</div>
+
+<script>
+// قاعدة البيانات الموسعة
+const db = {
+    angle: [
+        { name: "50x50x5 mm (x2)", area: 960, imin: 9.8, W: 6.0 },
+        { name: "60x60x6 mm (x2)", area: 1382, imin: 11.7, W: 9.0 },
+        { name: "70x70x7 mm (x2)", area: 1880, imin: 13.7, W: 13.0 },
+        { name: "80x80x8 mm (x2)", area: 2460, imin: 15.5, W: 18.0 },
+        { name: "100x100x10 mm (x2)", area: 3840, imin: 19.5, W: 36.4 }
+    ],
+    "c-channel": [
+        { name: "140x50x3 mm", area: 680, imin: 17.1, W: 8.5 },
+        { name: "140x60x4 mm", area: 980, imin: 20.5, W: 12.0 },
+        { name: "160x60x4 mm", area: 1060, imin: 20.2, W: 14.5 },
+        { name: "160x65x5 mm", area: 1400, imin: 22.1, W: 19.0 },
+        { name: "180x70x6 mm", area: 1850, imin: 24.5, W: 28.0 },
+        { name: "200x80x6 mm", area: 2150, imin: 27.8, W: 38.0 }
+    ],
+    upn: [
+        { name: "UPN 100", area: 1350, imin: 14.7, W: 8.5 },
+        { name: "UPN 120", area: 1700, imin: 15.9, W: 11.1 },
+        { name: "UPN 140", area: 2040, imin: 18.9, W: 14.8 },
+        { name: "UPN 160", area: 2400, imin: 21.3, W: 18.8 },
+        { name: "UPN 180", area: 2800, imin: 23.9, W: 23.4 },
+        { name: "UPN 200", area: 3220, imin: 26.5, W: 27.0 },
+        { name: "UPN 220", area: 3740, imin: 29.1, W: 33.6 }
+    ]
+};
+
+function updateBeamList() {
+    const type = document.getElementById('beamType').value;
+    const sizeSelect = document.getElementById('beamSize');
+    sizeSelect.innerHTML = db[type].map((b, i) => `<option value="${i}">${b.name}</option>`).join('');
+}
+
+function calculateFull() {
+    const type = document.getElementById('beamType').value;
+    const index = document.getElementById('beamSize').value;
+    const H = parseFloat(document.getElementById('heightH').value);
+    const L = parseFloat(document.getElementById('lengthL').value);
+    const load = parseFloat(document.getElementById('totalLoad').value);
+    const k1 = parseFloat(document.getElementById('safetyType').value);
+    const ah = parseFloat(document.getElementById('seismicAcc').value) / 10;
+    const bracing = document.getElementById('bracing').value;
+    
+    const beam = db[type][index];
+    const L_eff = (bracing === 'mid') ? L / 2 : L;
+    const lambda = L_eff / beam.imin;
+
+    let html = "";
+    let overallSafe = true;
+    let failReasonLambda = false;
+
+    const cases = [
+        { name: "التشغيل الاعتيادي", k: 1, s: 0 },
+        { name: "سقوط حر (الباراشوت)", k: k1, s: 0 },
+        { name: "تأثير زلزالي جانبي", k: 1, s: ah },
+        { name: "زلزال + باراشوت (مركب)", k: k1 * 0.6, s: ah }
+    ];
+
+    cases.forEach(c => {
+        // حساب الإجهاد المحوري (P/A)
+        const F_vertical = (load * 9.81 * c.k) / 2;
+        const stressAxial = F_vertical / beam.area;
+        
+        // حساب إجهاد الانحناء (M/W) الناتج عن القوى الزلزالية أو ترحيل الحمل
+        const F_lateral = (load * 9.81 * c.s) / 2;
+        const bendingMoment = (F_lateral * H) / 8; // عزم تبسيطي
+        const stressBending = bendingMoment / (beam.W * 1000);
+        
+        const totalStress = stressAxial + stressBending;
+        
+        const isSafe = totalStress < 130 && lambda < 120;
+        if (!isSafe) {
+            overallSafe = false;
+            if (lambda >= 120) failReasonLambda = true;
+        }
+
+        const statusClass = isSafe ? "pass" : "fail";
+        html += `<tr>
+            <td>${c.name}</td>
+            <td>${totalStress.toFixed(1)}</td>
+            <td>${lambda.toFixed(1)}</td>
+            <td><span class="status-badge ${statusClass}">${isSafe ? 'آمن ✅' : 'غير آمن ❌'}</span></td>
+        </tr>`;
+    });
+
+    // تحديث واجهة النتائج
+    document.getElementById('resultTable').innerHTML = html;
+    
+    // إظهار النصيحة الذكية
+    const adviceDiv = document.getElementById('adviceBox');
+    if (!overallSafe && failReasonLambda) {
+        adviceDiv.style.display = "block";
+        adviceDiv.innerHTML = `
+            <strong>⚠️ ملاحظة هندسية:</strong> المقطع المختار قوي كخامة حديد، لكنه <b>نحيف جداً</b> بالنسبة لطوله (نسبة النحافة λ تجاوزت 120). 
+            هذا يعني أنه سينحني للجانب (ينبعج) عند الطوارئ. 
+            <br>✅ <b>الحل:</b> فعل خيار <b>"التدعيم الوسطي"</b> أو استخدم مقطعاً بـ <b>جناح أعرض</b> لزيادة جساءته الجانبية.`;
+    } else {
+        adviceDiv.style.display = "none";
+    }
+
+    document.getElementById('results').style.display = 'block';
+    window.scrollTo(0, document.body.scrollHeight);
+}
+
+// البدء بملء القائمة لأول مرة
+updateBeamList();
+</script>
+
+</body>
+</html>
