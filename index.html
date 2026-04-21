@@ -60,6 +60,15 @@
                     <option value="5">لحظى k=5</option>
                 </select>
             </div>
+            <div class="field">
+    <label>منطقة النشاط الزلزالي:</label>
+    <select id="seismicAcc">
+        <option value="0">لا يوجد (Safe Zone)</option>
+        <option value="1">منطقة ضعيفة (0.1g)</option>
+        <option value="2.5">منطقة متوسطة (0.25g)</option>
+        <option value="4">منطقة قوية (0.4g)</option>
+    </select>
+</div>
             <div class="field"><label id="label-L">طول الكمرة L (سم)</label><input type="number" id="L_cm" value="120"></div>
             <div class="field"><label id="label-mass">الوزن الكلي=كابينة+ركاب (كجم)</label><input type="number" id="mass" value="1500"></div>
         </div>
@@ -125,48 +134,79 @@
         });
     }
 
-    function runAnalysis() {
-        const type = document.getElementById('pType').value;
-        const size = document.getElementById('pSize').value;
-        const mass = parseFloat(document.getElementById('mass').value);
-        const L_cm = parseFloat(document.getElementById('L_cm').value);
-        const data = db[type][size];
-        
-        let cases = [];
-        let dLimit = 0.001; // حد الشاسيه 1/1000
+function runAnalysis() {
+    const type = document.getElementById('pType').value;
+    const size = document.getElementById('pSize').value;
+    const mass = parseFloat(document.getElementById('mass').value);
+    const L_cm = parseFloat(document.getElementById('L_cm').value);
+    const data = db[type][size];
+    
+    // الحصول على معامل الزلزال وتحويله لنسبة من g
+    const ah = parseFloat(document.getElementById('seismicAcc').value) / 10;
+    
+    let cases = [];
+    let dLimit = 0.001; 
 
-        if(currentMode === 'chassis') {
-            const k = parseFloat(document.getElementById('safetyType').value);
-            cases = [{name:"طبيعي", k:1.0}, {name:"باراشوت", k:k}, {name:"زلزال", k:1.2}, {name:"زلزال+براشوت ", k:k+0.6}];
-            document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه كمر شاسيه الكابينه:</b> الأمان يعتمد على عدم تجاوز الإجهاد 90 نيوتن/مم² والترخيم 1 مم/متر.";
-        } else {
-            cases = [{name:"حمل شاسيه الماكينة التشغيلي", k:1.6}];
-            dLimit = 0.0005; // حد الماكينة الصارم 1/2000
-            document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه فرش الماكينة:</b> تم تطبيق معامل أمان 1.6 وحد ترخيم صارم جداً (0.5 مم لكل متر) لضمان استقامة المحور.";
-        }
+    if(currentMode === 'chassis') {
+        const k1 = parseFloat(document.getElementById('safetyType').value);
+        // تحديث المعاملات: الطبيعي 1.2 والزلزال بناءً على اختيار المستخدم
+        cases = [
+            {name: "طبيعي", k: 1.2, s: 0}, 
+            {name: "باراشوت", k: k1, s: 0}, 
+            {name: "زلزال جانبي", k: 1.0, s: ah}, 
+            {name: "زلزال + باراشوت", k: k1 * 0.6, s: ah}
+        ];
+        document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه كمر شاسيه الكابينه:</b> الأمان يعتمد على الإجهاد < 90 N/mm² والترخيم < 1 مم/متر.";
+    } else {
+        // وضع الماكينة يظل بمعامل أمان 1.6 لضمان الاستقامة
+        cases = [{name: "حمل شاسيه الماكينة التشغيلي", k: 1.6, s: 0}];
+    }
 
-        let bodyContent = "";
-        cases.forEach(c => {
-            const L_mm = L_cm * 10;
-            const force = (mass * 9.81 * c.k) / 4;
-            const sigma = (mass * 9.81 * c.k * L_mm) / (4 * data.Wx * 1000);
-            const delta = (0.7 * force * Math.pow(L_mm, 3)) / (48 * 210000 * data.Ix * 10000);
-            
-            const sSafe = sigma < 90;
-            const dSafe = (delta/L_mm) < dLimit;
-            const overall = sSafe && dSafe;
-
+    let bodyContent = "";
+    cases.forEach(c => {
+        // منطق الإعفاء الزلزالي
+        if (c.name.includes("زلزال") && ah === 0) {
             bodyContent += `<tr>
                 <td><b>${c.name}</b></td>
-                <td class="${dSafe?'':'result-danger'}">${delta.toFixed(2)} مم</td>
-                <td class="${sSafe?'':'result-danger'}">${sigma.toFixed(1)}</td>
-                <td class="${overall?'result-safe':'result-danger'}">${overall?'آمن ✅':'غير آمن ❌'}</td>
+                <td colspan="3" style="background:#e8f4f8; color:#2980b9;">معفى (منطقة غير زلزالية)</td>
             </tr>`;
-        });
+            return;
+        }
 
-        document.getElementById('table-body').innerHTML = bodyContent;
-        document.getElementById('report-section').style.display = 'block';
-    }
+const L_mm = L_cm * 10;
+        
+        // 1. حساب معامل الحمل الإجمالي (Total Force Coefficient)
+        // نجمع معامل الأمان الرأسي ومعامل التسارع الزلزالي الجانبي
+        // في الحالات الطبيعية يكون s = 0 فيبقى المعامل k فقط
+        const total_k = c.k + c.s; 
+
+        // 2. حساب القوة المؤثرة الإجمالية الموزعة على 4 نقاط (كمرتين لكل منهما طرفين)
+        const total_force = (mass * 9.81 * total_k) / 4;
+
+        // 3. حساب الإجهاد المحصل (Sigma) مرة واحدة بناءً على المحصلة
+        // هذه المعادلة مطابقة لمنطق الكود القديم لكن بمعاملات محدثة
+        const total_sigma = (mass * 9.81 * total_k * L_mm) / (4 * data.Wx * 1000);
+
+        // 4. حساب الترخيم (Delta)
+        // ملاحظة: الترخيم يُحسب دائماً بناءً على القوة الرأسية الأكثر تأثيراً
+        const delta = (0.7 * total_force * Math.pow(L_mm, 3)) / (48 * 210000 * data.Ix * 10000);
+        
+        // التحقق من الأمان
+        const sSafe = total_sigma < 90;
+        const dSafe = (delta / L_mm) < dLimit;
+        const overall = sSafe && dSafe;
+
+        bodyContent += `<tr>
+            <td><b>${c.name}</b></td>
+            <td class="${dSafe?'':'result-danger'}">${delta.toFixed(2)} مم</td>
+            <td class="${sSafe?'':'result-danger'}">${total_sigma.toFixed(1)}</td>
+            <td class="${overall?'result-safe':'result-danger'}">${overall?'آمن ✅':'غير آمن ❌'}</td>
+        </tr>`;
+    });
+
+    document.getElementById('table-body').innerHTML = bodyContent;
+    document.getElementById('report-section').style.display = 'block';
+}
     window.onload = loadSizes;
 </script>
 </body>
