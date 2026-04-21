@@ -269,9 +269,17 @@ function calculateFull() {
         const stressAxial = F_vertical / beam.area;
         
         // حساب إجهاد الانحناء (M/W) الناتج عن القوى الزلزالية أو ترحيل الحمل
-        const F_lateral = (load * 9.81 * c.s) / 2;
-        const bendingMoment = (F_lateral * H) / 8; // عزم تبسيطي
-        const stressBending = bendingMoment / (beam.W * 1000);
+ // 1. القوة الجانبية الإجمالية
+const F_total = (load * 9.81 * c.s); 
+
+// 2. حساب العزم (Bending Moment) 
+// نستخدم L (طول القائم) لأن الانحناء يحدث على طول القائم الرأسي
+const bendingMoment = (F_total * L) / 2; 
+
+// 3. حساب الإجهاد (Stress) 
+// نستخدم H في المقام كما ورد في السطر الأخير من الصورة
+// H هنا هي المسافة بين الكراسي (Guide Shoe Distance)
+const stressBending = bendingMoment / (2 * H * beam.W * 1000);
         
         const totalStress = stressAxial + stressBending;
         
