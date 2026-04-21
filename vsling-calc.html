@@ -263,41 +263,48 @@ function calculateFull() {
         { name: "زلزال + باراشوت (مركب)", k: k1 * 0.6, s: ah }
     ];
 
-    cases.forEach(c => {
-        // حساب الإجهاد المحوري (P/A)
-        const F_vertical = (load * 9.81 * c.k) / 2;
-        const stressAxial = F_vertical / beam.area;
-        
-        // حساب إجهاد الانحناء (M/W) الناتج عن القوى الزلزالية أو ترحيل الحمل
- // 1. القوة الجانبية الإجمالية
-const F_total = (load * 9.81 * c.s); 
+ cases.forEach(c => {
+        // التحقق من حالة الإعفاء الزلزالي
+        if (c.name.includes("زلزال") && ah === 0) {
+            html += `<tr>
+                <td>${c.name}</td>
+                <td colspan="2" style="color: #2980b9; font-weight: bold; background: #e8f4f8;">معفى (منطقة غير زلزالية)</td>
+                <td><span class="status-badge pass">غير مطلوب ✅</span></td>
+            </tr>`;
+        } else {
+            // حساب الإجهاد المحوري (P/A)
+            const F_vertical = (load * 9.81 * c.k) / 2;
+            const stressAxial = F_vertical / beam.area;
+            
+            // حساب إجهاد الانحناء بناءً على تعديل "القسمة على 2" والمقال
+// 1. القوة الجانبية الأساسية (بدون معامل أمان)
+const F_base = (load * 9.81 * c.s); 
 
-// 2. حساب العزم (Bending Moment) 
-// نستخدم L (طول القائم) لأن الانحناء يحدث على طول القائم الرأسي
-const bendingMoment = (F_total * L) / 2; 
+// 2. دمج المعامل k في العزم (لتحويله لعزم ديناميكي مطابق للمقال)
+// المقال استخدم: k1 * Load_Moment
+const bendingMoment = (c.k * F_base * L) / 2; 
 
-// 3. حساب الإجهاد (Stress) 
-// نستخدم H في المقام كما ورد في السطر الأخير من الصورة
-// H هنا هي المسافة بين الكراسي (Guide Shoe Distance)
+// 3. حساب الإجهاد النهائي مع توزيع الحمل على المسافة بين الكراسي H
+// القسمة على 2 إضافية لأن القوة تتوزع على قائمين (نصفين)
 const stressBending = bendingMoment / (2 * H * beam.W * 1000);
-        
-        const totalStress = stressAxial + stressBending;
-        
-        const isSafe = totalStress < 130 && lambda < 120;
-        if (!isSafe) {
-            overallSafe = false;
-            if (lambda >= 120) failReasonLambda = true;
+            
+            const totalStress = stressAxial + stressBending;
+            
+            const isSafe = totalStress < 130 && lambda < 120;
+            if (!isSafe) {
+                overallSafe = false;
+                if (lambda >= 120) failReasonLambda = true;
+            }
+
+            const statusClass = isSafe ? "pass" : "fail";
+            html += `<tr>
+                <td>${c.name}</td>
+                <td>${totalStress.toFixed(1)}</td>
+                <td>${lambda.toFixed(1)}</td>
+                <td><span class="status-badge ${statusClass}">${isSafe ? 'آمن ✅' : 'غير آمن ❌'}</span></td>
+            </tr>`;
         }
-
-        const statusClass = isSafe ? "pass" : "fail";
-        html += `<tr>
-            <td>${c.name}</td>
-            <td>${totalStress.toFixed(1)}</td>
-            <td>${lambda.toFixed(1)}</td>
-            <td><span class="status-badge ${statusClass}">${isSafe ? 'آمن ✅' : 'غير آمن ❌'}</span></td>
-        </tr>`;
     });
-
     // تحديث واجهة النتائج
     document.getElementById('resultTable').innerHTML = html;
     
