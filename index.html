@@ -141,67 +141,85 @@ function runAnalysis() {
     const L_cm = parseFloat(document.getElementById('L_cm').value);
     const data = db[type][size];
     
-    // الحصول على معامل الزلزال وتحويله لنسبة من g
+    // الحصول على معامل الزلزال
     const ah = parseFloat(document.getElementById('seismicAcc').value) / 10;
     
     let cases = [];
     let dLimit = 0.001; 
+    let b_mm = 0; 
 
     if(currentMode === 'chassis') {
         const k1 = parseFloat(document.getElementById('safetyType').value);
-        // تحديث المعاملات: الطبيعي 1.2 والزلزال بناءً على اختيار المستخدم
+        b_mm = 220; // عرض بالتة الحبال
         cases = [
             {name: "طبيعي", k: 1.2, s: 0}, 
             {name: "باراشوت", k: k1, s: 0}, 
             {name: "زلزال جانبي", k: 1.0, s: ah}, 
             {name: "زلزال + باراشوت", k: k1 * 0.6, s: ah}
         ];
-        document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه كمر شاسيه الكابينه:</b> الأمان يعتمد على الإجهاد < 90 N/mm² والترخيم < 1 مم/متر.";
+        document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه كمر شاسيه الكابينه:</b> الأمان يعتمد على الإجهاد < 90 N/mm² والترخيم < 1 مم/متر. <br><b>التحليل المزدوج لشاسيه الكابينة:</b> يقارن بين حسابات كودة المصاعد على اساس كمرتين منفردتين (حسابات متحفظة) وبين الواقع العملى 'الهيكل السلمي' بخصم 22 سم عرض البالتة الرابطة للكمرتين من المنتصف.";
     } else {
-        // وضع الماكينة يظل بمعامل أمان 1.6 لضمان الاستقامة
-        cases = [{name: "حمل شاسيه الماكينة التشغيلي", k: 1.6, s: 0}];
+        b_mm = 400; // طول قاعدة الماكينة
+        cases = [{name: "حمل فرش الماكينة", k: 1.6, s: 0}];
+        dLimit = 0.0005;
+        document.getElementById('disclaimer-text').innerHTML = "<b>التحليل المزدوج لفرش الماكينة:</b> يقارن بين حسابات كودة المصاعد على اساس كمرتين منفردتين مع تركيز الحمولة على نقطة صفرية (حسابات متحفظة) وبين توزيع الكمولة على 40 سم قاعدة الماكينة (طول القاعدة الجاسئة) لمقاربة الواقع العملي.";
     }
 
+    // إعادة بناء ترويسة الجدول
+    document.getElementById('result-table').innerHTML = `
+        <thead>
+            <tr>
+                <th>حالة التشغيل</th>
+                <th>منهجية الحساب</th>
+                <th>الترخيم (مم)</th>
+                <th>الإجهاد (N/mm²)</th>
+                <th>القرار الفني</th>
+            </tr>
+        </thead>
+        <tbody id="table-body"></tbody>`;
+
     let bodyContent = "";
+    const L_mm_total = L_cm * 10;
+    const L_eff = L_mm_total - b_mm;
+
     cases.forEach(c => {
-        // منطق الإعفاء الزلزالي
+        // إدارة الحالات الزلزالية في المناطق الصفرية
         if (c.name.includes("زلزال") && ah === 0) {
             bodyContent += `<tr>
                 <td><b>${c.name}</b></td>
-                <td colspan="3" style="background:#e8f4f8; color:#2980b9;">معفى (منطقة غير زلزالية)</td>
+                <td colspan="4" style="background:#f8f9fa; color:#999;">معفى (منطقة غير زلزالية)</td>
             </tr>`;
-            return;
+            return; // الانتقال للحالة التالية دون إنهاء الدالة
         }
 
-const L_mm = L_cm * 10;
-        
-        // 1. حساب معامل الحمل الإجمالي (Total Force Coefficient)
-        // نجمع معامل الأمان الرأسي ومعامل التسارع الزلزالي الجانبي
-        // في الحالات الطبيعية يكون s = 0 فيبقى المعامل k فقط
-        const total_k = c.k + c.s; 
+        const total_k = c.k + c.s;
 
-        // 2. حساب القوة المؤثرة الإجمالية الموزعة على 4 نقاط (كمرتين لكل منهما طرفين)
-        const total_force = (mass * 9.81 * total_k) / 4;
+        // 1. الحساب المحافظ (على كامل الطول L)
+        const f_trad = (mass * 9.81 * total_k) / 4;
+        const s_trad = (mass * 9.81 * total_k * L_mm_total) / (4 * data.Wx * 1000);
+        const d_trad = (0.7 * f_trad * Math.pow(L_mm_total, 3)) / (48 * 210000 * data.Ix * 10000);
+        const safe_trad = (s_trad < 90) && ((d_trad/L_mm_total) < dLimit);
 
-        // 3. حساب الإجهاد المحصل (Sigma) مرة واحدة بناءً على المحصلة
-        // هذه المعادلة مطابقة لمنطق الكود القديم لكن بمعاملات محدثة
-        const total_sigma = (mass * 9.81 * total_k * L_mm) / (4 * data.Wx * 1000);
+        // 2. مقاربة الواقع (على الطول الفعال L - b)
+        const f_real = (mass * 9.81 * total_k) / 4;
+        const s_real = (mass * 9.81 * total_k * L_eff) / (4 * data.Wx * 1000);
+        const d_real = (0.7 * f_real * Math.pow(L_eff, 3)) / (48 * 210000 * data.Ix * 10000);
+        const safe_real = (s_real < 90) && ((d_real/L_eff) < dLimit);
 
-        // 4. حساب الترخيم (Delta)
-        // ملاحظة: الترخيم يُحسب دائماً بناءً على القوة الرأسية الأكثر تأثيراً
-        const delta = (0.7 * total_force * Math.pow(L_mm, 3)) / (48 * 210000 * data.Ix * 10000);
-        
-        // التحقق من الأمان
-        const sSafe = total_sigma < 90;
-        const dSafe = (delta / L_mm) < dLimit;
-        const overall = sSafe && dSafe;
-
-        bodyContent += `<tr>
-            <td><b>${c.name}</b></td>
-            <td class="${dSafe?'':'result-danger'}">${delta.toFixed(2)} مم</td>
-            <td class="${sSafe?'':'result-danger'}">${total_sigma.toFixed(1)}</td>
-            <td class="${overall?'result-safe':'result-danger'}">${overall?'آمن ✅':'غير آمن ❌'}</td>
-        </tr>`;
+        bodyContent += `
+            <tr style="border-top: 2px solid #eee;">
+                <td rowspan="2"><b>${c.name}</b></td>
+                <td style="color: #7f8c8d; font-size: 0.85em;">نظري (كامل الطول)</td>
+                <td class="${(d_trad/L_mm_total < dLimit)?'':'result-danger'}">${d_trad.toFixed(2)}</td>
+                <td class="${s_trad < 90 ?'':'result-danger'}">${s_trad.toFixed(1)}</td>
+                <td class="${safe_trad?'result-safe':'result-danger'}">${safe_trad?'آمن ✅':'غير آمن ❌'}</td>
+            </tr>
+            <tr style="background: #fdfaf6;">
+                <td style="color: #d35400; font-weight: bold; font-size: 0.85em;">مقاربة الواقع العملى</td>
+                <td>${d_real.toFixed(2)}</td>
+                <td>${s_real.toFixed(1)}</td>
+                <td class="${safe_real?'result-safe':'result-danger'}">${safe_real?'آمن ✅':'غير آمن ❌'}</td>
+            </tr>`;
     });
 
     document.getElementById('table-body').innerHTML = bodyContent;
