@@ -196,13 +196,13 @@ function runAnalysis() {
 
         // 1. الحساب المحافظ (على كامل الطول L)
         const f_trad = (mass * 9.81 * total_k) / 4;
-        const s_trad = (mass * 9.81 * total_k * L_mm_total) / (4 * data.Wx * 1000);
+        const s_trad = (mass * 9.81 * total_k * L_mm_total) / (8 * data.Wx * 1000);
         const d_trad = (0.7 * f_trad * Math.pow(L_mm_total, 3)) / (48 * 210000 * data.Ix * 10000);
         const safe_trad = (s_trad < 90) && ((d_trad/L_mm_total) < dLimit);
 
         // 2. مقاربة الواقع (على الطول الفعال L - b)
         const f_real = (mass * 9.81 * total_k) / 4;
-        const s_real = (mass * 9.81 * total_k * L_eff) / (4 * data.Wx * 1000);
+        const s_real = (mass * 9.81 * total_k * L_eff) / (8 * data.Wx * 1000);
         const d_real = (0.7 * f_real * Math.pow(L_eff, 3)) / (48 * 210000 * data.Ix * 10000);
         const safe_real = (s_real < 90) && ((d_real/L_eff) < dLimit);
 
