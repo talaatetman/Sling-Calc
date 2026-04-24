@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Sling & Machine Expert v7.0 - Elaf</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #e67e22; --machine: #2980b9; --safe: #27ae60; --danger: #c0392b; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f3f5; padding: 20px; direction: rtl; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: var(--primary); border-bottom: 3px solid var(--accent); padding-bottom: 10px; }
+        .mode-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
+        .mode-btn { padding: 10px 25px; border: 2px solid var(--primary); border-radius: 30px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .mode-btn.active { background: var(--primary); color: white; }
+        .mode-btn.machine.active { background: var(--machine); border-color: var(--machine); }
+        .input-card { background: #fdfdfd; padding: 20px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 25px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .field { display: flex; flex-direction: column; }
+        label { font-weight: bold; font-size: 0.85em; margin-bottom: 5px; color: #555; }
+        select, input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+        button.main-btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; }
+        .report-section { display: none; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th { background: #f8f9fa; color: var(--primary); }
+        .result-safe { color: var(--safe); font-weight: bold; background: #e8f5e9; }
+        .result-danger { color: var(--danger); font-weight: bold; background: #ffebee; }
+        .disclaimer { margin-top: 25px; padding: 15px; background: #fff3cd; border-right: 5px solid #ffeeba; font-size: 0.85em; color: #856404; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="main-title">تحليل أمان الكمر الأفقى لشاسيه الكابينة والماكينة</h1>
+    
+    <div class="mode-selector">
+        <div id="btn-chassis" class="mode-btn active" onclick="setMode('chassis')">وضع شاسيه الكابينة</div>
+        <div id="btn-machine" class="mode-btn machine" onclick="setMode('machine')">وضع فرش الماكينة</div>
+    </div>
+    
+    <div class="input-card">
+        <div class="grid">
+            <div class="field">
+                <label>نوع الكمرة (نمط كمرتين)</label>
+                <select id="pType" onchange="loadSizes()">
+                    <option value="UPN">UPN (مجرى)</option>
+                    <option value="IPE">IPE (حرف I)</option>
+                </select>
+            </div>
+            <div class="field"><label>مقاس الكمرة (سم)</label><select id="pSize"></select></div>
+            
+            <div id="safety-field" class="field">
+                <label>نوع فرملة الطوارئ - الباراشوت</label>
+                <select id="safetyType">
+                    <option value="3.0">لحظي بمخمد او ببكر مسنن k=3.0</option>
+                    <option value="2">تدريجي k=2</option>
+                    <option value="5">لحظى k=5</option>
+                </select>
+            </div>
+
+            <div id="seismic-field" class="field">
+                <label>منطقة النشاط الزلزالي:</label>
+                <select id="seismicAcc">
+                    <option value="0">لا يوجد (Safe Zone)</option>
+                    <option value="1">منطقة ضعيفة (0.1g)</option>
+                    <option value="2.5">منطقة متوسطة (0.25g)</option>
+                    <option value="4">منطقة قوية (0.4g)</option>
+                </select>
+            </div>
+
+            <div class="field"><label id="label-L">طول الكمرة L (سم)</label><input type="number" id="L_cm" value="120"></div>
+            <div class="field"><label id="label-mass">الوزن الكلي (كجم)</label><input type="number" id="mass" value="1500"></div>
+        </div>
+    </div>
+
+    <button class="main-btn" onclick="runAnalysis()">إجراء التحليل الإنشائي</button>
+
+    <div id="report-section" class="report-section">
+        <table id="result-table"></table>
+        <div id="disclaimer-text" class="disclaimer"></div>
+    </div>
+
+    <div class="disclaimer">
+        <strong>📋 ملاحظات المنهجية الهندسية المتبعة:</strong>
+        <br>• الحسابات تعتمد على توزيع الحمل على كمرتين متوازيتين (n=2) ومعامل القسمة (8).
+        <br>• شاسيه الكابينة: حد الإجهاد 90 N/mm² والترخيم 0.001.
+        <br>• فرش الماكينة: حد الإجهاد 130 N/mm² والترخيم 0.0005 لضمان استقرار المحاور.
+    </div>
+
+    <footer style="margin-top: 30px; text-align: center; border-top: 1px solid #eee; padding-top: 15px;">
+        <a href="https://elevatorsinfo.blogspot.com/" target="_blank" style="color: var(--secondary-color); text-decoration: none; font-size: 14px;">مدونة المصاعد - المهندس طلعت عتمان - ايلاف للمصاعد</a>
+    </footer>
+</div>
+
+<script>
+    let currentMode = 'chassis';
+    const db = {
+        UPN: {"10":{Wx:41.1,Ix:206},"12":{Wx:60.7,Ix:364},"14":{Wx:86.4,Ix:605},"16":{Wx:116,Ix:925},"18":{Wx:150,Ix:1350},"20":{Wx:191,Ix:1910},"22":{Wx:245,Ix:2690},"24":{Wx:300,Ix:3600},"27":{Wx:371,Ix:4960},"30":{Wx:535,Ix:8030}},
+        IPE: {"10":{Wx:34.2,Ix:171},"12":{Wx:54.7,Ix:318},"14":{Wx:77.3,Ix:541},"16":{Wx:109,Ix:869},"18":{Wx:146,Ix:1320},"20":{Wx:194,Ix:1940},"22":{Wx:252,Ix:2770},"24":{Wx:324,Ix:3890},"27":{Wx:429,Ix:5790},"30":{Wx:542,Ix:8360}}
+    };
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btn-chassis').classList.toggle('active', mode === 'chassis');
+        document.getElementById('btn-machine').classList.toggle('active', mode === 'machine');
+        
+        // تعديل الواجهة: الماكينة الآن تظهر البراشوت والزلزال أيضاً
+        document.getElementById('label-L').innerText = (mode === 'machine') ? "المسافة بين الركائز الخرسانية (سم)" : "طول الكمرة الحر (سم)";
+        document.getElementById('label-mass').innerText = (mode === 'machine') ? "إجمالي الأوزان (كجم)" : "الوزن الكلي كابينة+ركاب (كجم)";
+        document.getElementById('report-section').style.display = 'none';
+    }
+
+    function loadSizes() {
+        const type = document.getElementById('pType').value;
+        const sel = document.getElementById('pSize'); sel.innerHTML = '';
+        Object.keys(db[type]).sort((a,b)=>a-b).forEach(sz => {
+            let opt = document.createElement('option'); opt.value = sz; opt.innerText = "مقاس " + sz + " سم"; sel.appendChild(opt);
+        });
+    }
+
+    function runAnalysis() {
+        const type = document.getElementById('pType').value;
+        const size = document.getElementById('pSize').value;
+        const mass = parseFloat(document.getElementById('mass').value);
+        const L_cm = parseFloat(document.getElementById('L_cm').value);
+        const data = db[type][size];
+        const ah = parseFloat(document.getElementById('seismicAcc').value) / 10;
+        const k1 = parseFloat(document.getElementById('safetyType').value);
+        
+        let cases = [];
+        let dLimit = 0.001; 
+        let sLimit = 90;
+        let b_mm = 0; 
+
+        if(currentMode === 'chassis') {
+            b_mm = 220; 
+            sLimit = 90;
+            cases = [
+                {name: "طبيعي", k: 1.2, s: 0}, 
+                {name: "باراشوت", k: k1, s: 0}, 
+                {name: "زلزال جانبي", k: 1.0, s: ah}, 
+                {name: "زلزال + باراشوت", k: k1 * 0.6, s: ah}
+            ];
+            document.getElementById('disclaimer-text').innerHTML = "<b>تنبيه كمر شاسيه الكابينه:</b> الأمان يعتمد على الإجهاد < 90 N/mm² والترخيم < 0.001. <br><b>التحليل المزدوج:</b> يقارن بين النظرية والواقع بخصم 22 سم عرض البالتة.";
+} else {
+        // وضع فرش الماكينة
+        b_mm = 400; 
+        sLimit = 130; // حد الإجهاد المرتفع للماكينة
+        dLimit = 0.0005; // حد الترخيم الصارم لاستقرار المحاور
+        
+        // معامل التحميل الديناميكي بناءً على الوزن الإجمالي
+        const loadingFactor = (mass <= 8200) ? 0.4 : 0.8;
+        
+        cases = [
+            {name: "تحميل وتفريغ بالطابق", k: loadingFactor, s: 0},
+            {name: "تشغيل طبيعي", k: 1.2, s: 0},
+            {name: "تعشيق البراشوت", k: k1, s: 0}, // هذه الحالة تغطي ربع الحمولة الزائدة تلقائياً
+            {name: "زلزال المنطقة", k: 1.0, s: ah},
+            {name: "زلزال + براشوت", k: k1 * 0.6, s: ah} // تطبيق معامل التخامد الزلزالي المتفق عليه
+        ];
+        
+        document.getElementById('disclaimer-text').innerHTML = `<b>تحليل فرش الماكينة:</b> تم اعتماد معامل تحميل <b>${loadingFactor}</b>. حالة البراشوت تعتبر الاختبار الأقسى وتغطي ضمنياً متطلبات زيادة الـ 125% في حمولة الركاب.`;
+    }
+
+        document.getElementById('result-table').innerHTML = `
+            <thead>
+                <tr>
+                    <th>حالة التشغيل</th>
+                    <th>منهجية الحساب</th>
+                    <th>الترخيم (مم)</th>
+                    <th>الإجهاد (N/mm²)</th>
+                    <th>القرار الفني</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>`;
+
+        let bodyContent = "";
+        const L_mm_total = L_cm * 10;
+        const L_eff = L_mm_total - b_mm;
+
+        cases.forEach(c => {
+            if (c.name.includes("زلزال") && ah === 0) {
+                bodyContent += `<tr><td><b>${c.name}</b></td><td colspan="4" style="background:#f8f9fa; color:#999;">معفى (منطقة غير زلزالية)</td></tr>`;
+                return;
+            }
+
+            const total_k = c.k + c.s;
+
+            // 1. الحساب النظري
+            const s_trad = (mass * 9.81 * total_k * L_mm_total) / (8 * data.Wx * 1000);
+            const d_trad = (0.7 * (mass * 9.81 * total_k / 4) * Math.pow(L_mm_total, 3)) / (48 * 210000 * data.Ix * 10000);
+            const safe_trad = (s_trad < sLimit) && ((d_trad/L_mm_total) < dLimit);
+
+            // 2. مقاربة الواقع
+            const s_real = (mass * 9.81 * total_k * L_eff) / (8 * data.Wx * 1000);
+            const d_real = (0.7 * (mass * 9.81 * total_k / 4) * Math.pow(L_eff, 3)) / (48 * 210000 * data.Ix * 10000);
+            const safe_real = (s_real < sLimit) && ((d_real/L_eff) < dLimit);
+
+            bodyContent += `
+                <tr style="border-top: 2px solid #eee;">
+                    <td rowspan="2"><b>${c.name}</b></td>
+                    <td style="color: #7f8c8d; font-size: 0.85em;">نظري (كامل الطول)</td>
+                    <td class="${(d_trad/L_mm_total < dLimit)?'':'result-danger'}">${d_trad.toFixed(2)}</td>
+                    <td class="${s_trad < sLimit ?'':'result-danger'}">${s_trad.toFixed(1)}</td>
+                    <td class="${safe_trad?'result-safe':'result-danger'}">${safe_trad?'آمن ✅':'غير آمن ❌'}</td>
+                </tr>
+                <tr style="background: #fdfaf6;">
+                    <td style="color: #d35400; font-weight: bold; font-size: 0.85em;">مقاربة الواقع العملى</td>
+                    <td>${d_real.toFixed(2)}</td>
+                    <td>${s_real.toFixed(1)}</td>
+                    <td class="${safe_real?'result-safe':'result-danger'}">${safe_real?'آمن ✅':'غير آمن ❌'}</td>
+                </tr>`;
+        });
+
+        document.getElementById('table-body').innerHTML = bodyContent;
+        document.getElementById('report-section').style.display = 'block';
+    }
+    window.onload = loadSizes;
+</script>
+</body>
+</html>
